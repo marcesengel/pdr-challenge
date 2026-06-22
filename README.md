@@ -1,5 +1,6 @@
 ## Initial Data
 
+- Data is always initialised from the given initial data, `data/users.json` is only written to.
 - Invalid entries are discarded for simplicity.
 - Phone numbers are parsed as US numbers and normalized to E.164.
 - Possible but not necessarily valid/allocated phone numbers are accepted to avoid discarding too much of the provided data.
