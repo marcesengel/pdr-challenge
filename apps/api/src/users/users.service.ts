@@ -1,23 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { userSchema, type User } from 'shared';
-import * as z from 'zod';
+import { Injectable } from '@nestjs/common'
+import { User } from 'shared'
+
+import { CreateUserRecord, UsersRepository } from './users.repository'
 
 @Injectable()
 export class UsersService {
-  private users: User[] = [];
-
-  async onModuleInit(): Promise<void> {
-    const serializedUsers = await readFile(
-      join(__dirname, 'assets/users.json'),
-      'utf8',
-    );
-    const rawUsers = JSON.parse(serializedUsers);
-    this.users = z.array(userSchema).parse(rawUsers);
-  }
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   getUsers(): User[] {
-    return this.users;
+    return this.usersRepository.findMany()
+  }
+
+  getUserById(id: number): User | undefined {
+    return this.usersRepository.findById(id)
+  }
+
+  createUser(user: CreateUserInput) {
+    return this.usersRepository.create(user)
   }
 }
+
+export type CreateUserInput = CreateUserRecord

@@ -2,6 +2,10 @@
   "name": "pdr",
   "version": "0.0.0",
   "private": true,
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
     "@nestjs/schematics": "^11.0.0",
@@ -14,6 +18,8 @@
     "@nx/web": "23.0.0",
     "@nx/webpack": "23.0.0",
     "@swc/helpers": "~0.5.18",
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@types/google-libphonenumber": "^7.4.30",
     "@types/node": "^22.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
@@ -31,6 +37,7 @@
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "google-libphonenumber": "^3.2.44",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
     "zod": "^4.4.3"
