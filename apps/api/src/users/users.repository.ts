@@ -24,12 +24,13 @@ export class UsersRepository {
     if (!Array.isArray(rawUsers))
       throw new Error('Expected raw users to be an array.')
 
-    this.users = rawUsers
+    const users = rawUsers
       .map((ru) => userSchema.safeParse(ru))
       .filter((r) => r.success)
       .map((r) => r.data)
 
-    this.currentMaxId = Math.max(...Object.values(this.users).map((u) => u.id))
+    this.users = Object.fromEntries(users.map((user) => [user.id, user]))
+    this.currentMaxId = Math.max(...users.map((user) => user.id))
   }
 
   findMany(): User[] {
