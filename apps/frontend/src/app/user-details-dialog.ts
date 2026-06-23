@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'
 import { catchError, of } from 'rxjs'
 import type { User } from 'shared'
 
+import { RolePill } from './role-pill'
 import { UsersService } from './users.service'
 
 @Component({
@@ -21,11 +22,10 @@ import { UsersService } from './users.service'
     MatDialogModule,
     MatDividerModule,
     MatProgressSpinnerModule,
+    RolePill,
   ],
   selector: 'app-user-details-dialog',
   template: `
-    <h2 mat-dialog-title>User details</h2>
-
     <mat-dialog-content>
       @let user = userState();
       @if (user === undefined) {
@@ -33,25 +33,31 @@ import { UsersService } from './users.service'
           <mat-spinner diameter="32"></mat-spinner>
         </div>
       } @else if (user) {
+        <header class="dialog-header">
+          <h2>{{ fullName(user) }}</h2>
+          <app-role-pill [role]="user.role" />
+        </header>
         <section class="details">
-          <div>
+          <div class="detail-row">
             <span>Full name</span>
             <strong>{{ fullName(user) }}</strong>
           </div>
           <mat-divider></mat-divider>
-          <div>
+          <div class="detail-row">
             <span>Email</span>
-            <strong>{{ user.email }}</strong>
+            <strong class="preserve-case">{{ user.email }}</strong>
           </div>
           <mat-divider></mat-divider>
-          <div>
+          <div class="detail-row">
             <span>Phone</span>
-            <strong>{{ user.phoneNumber || missingValue }}</strong>
+            <strong class="preserve-case">
+              {{ user.phoneNumber || missingValue }}
+            </strong>
           </div>
           <mat-divider></mat-divider>
-          <div>
+          <div class="detail-row">
             <span>Birth date</span>
-            <strong>
+            <strong class="preserve-case">
               {{
                 user.birthDate
                   ? (user.birthDate | date: 'mediumDate')
@@ -60,7 +66,7 @@ import { UsersService } from './users.service'
             </strong>
           </div>
           <mat-divider></mat-divider>
-          <div>
+          <div class="detail-row">
             <span>Role</span>
             <strong>{{ user.role }}</strong>
           </div>
@@ -86,13 +92,27 @@ import { UsersService } from './users.service'
       place-items: center;
     }
 
+    .dialog-header {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      padding-bottom: 18px;
+    }
+
+    .dialog-header h2 {
+      font: var(--mat-sys-title-large);
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
     .details {
       display: grid;
       gap: 14px;
       padding-top: 4px;
     }
 
-    .details div {
+    .detail-row {
       display: grid;
       gap: 4px;
     }
@@ -110,8 +130,7 @@ import { UsersService } from './users.service'
       text-transform: capitalize;
     }
 
-    .details div:nth-child(3) strong,
-    .details div:nth-child(5) strong {
+    .details .preserve-case {
       text-transform: none;
     }
 

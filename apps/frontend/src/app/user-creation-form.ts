@@ -49,7 +49,10 @@ type UserCreationFormField = CreateUserDtoField
   providers: [provideNativeDateAdapter()],
   selector: 'app-user-creation-form',
   template: `
-    <h2>Create user</h2>
+    <div class="form-header">
+      <h2>Create user</h2>
+      <p>Profile and permissions</p>
+    </div>
     <form
       #formDirective="ngForm"
       [formGroup]="userForm"
@@ -127,23 +130,39 @@ type UserCreationFormField = CreateUserDtoField
   `,
   styles: `
     :host {
-      background: var(--mat-sys-surface-container-low);
-      border: 1px solid var(--mat-sys-outline-variant);
+      background: var(--mat-sys-surface);
+      border: 1px solid
+        color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
       border-radius: 8px;
+      box-shadow: var(--mat-sys-level1);
       display: grid;
-      gap: 18px;
+      gap: 20px;
       overflow: hidden;
-      padding: 20px;
+      padding: 24px;
+    }
+
+    .form-header {
+      display: grid;
+      gap: 4px;
+    }
+
+    .form-header h2,
+    .form-header p {
+      margin: 0;
     }
 
     h2 {
       font: var(--mat-sys-title-large);
-      margin: 0;
+    }
+
+    .form-header p {
+      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-body-medium);
     }
 
     form {
       display: grid;
-      gap: 12px;
+      gap: 14px;
     }
 
     .name-grid {
@@ -166,6 +185,14 @@ type UserCreationFormField = CreateUserDtoField
     @media (max-width: 720px) {
       .name-grid {
         grid-template-columns: 1fr;
+      }
+
+      :host {
+        padding: 20px;
+      }
+
+      button[type='submit'] {
+        justify-self: stretch;
       }
     }
   `,

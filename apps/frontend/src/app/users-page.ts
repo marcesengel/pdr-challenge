@@ -1,7 +1,7 @@
 import { Component, ViewChild, inject } from '@angular/core'
-import { MatChipsModule } from '@angular/material/chips'
 import { MatDialog } from '@angular/material/dialog'
 import { MatFormFieldModule } from '@angular/material/form-field'
+import { MatIconModule } from '@angular/material/icon'
 import { MatInputModule } from '@angular/material/input'
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
@@ -9,29 +9,33 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table'
 import { finalize } from 'rxjs'
 import type { User } from 'shared'
 
+import { RolePill } from './role-pill'
 import { UserCreationForm } from './user-creation-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { UsersService } from './users.service'
 
 @Component({
   imports: [
-    MatChipsModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
     MatPaginatorModule,
     MatSnackBarModule,
     MatTableModule,
+    RolePill,
     UserCreationForm,
   ],
   selector: 'app-users-page',
   template: `
     <main class="page">
       <header class="page-header">
-        <div>
+        <div class="title-block">
           <p>Directory</p>
           <h1>Users</h1>
+          <span>{{ isLoading ? 'Loading users' : userCountLabel() }}</span>
         </div>
         <mat-form-field appearance="outline" class="search-field">
+          <mat-icon matIconPrefix>search</mat-icon>
           <mat-label>Search full name</mat-label>
           <input
             #searchInput
@@ -65,7 +69,7 @@ import { UsersService } from './users.service'
               <ng-container matColumnDef="role">
                 <th mat-header-cell *matHeaderCellDef>Role</th>
                 <td mat-cell *matCellDef="let user">
-                  <mat-chip class="role-chip">{{ user.role }}</mat-chip>
+                  <app-role-pill [role]="user.role" />
                   <button
                     type="button"
                     class="row-action"
@@ -113,7 +117,7 @@ import { UsersService } from './users.service'
 
     .page {
       display: grid;
-      gap: 24px;
+      gap: 28px;
       padding: 32px;
     }
 
@@ -125,7 +129,8 @@ import { UsersService } from './users.service'
     }
 
     .page-header p,
-    .page-header h1 {
+    .page-header h1,
+    .page-header span {
       margin: 0;
     }
 
@@ -139,6 +144,14 @@ import { UsersService } from './users.service'
     .page-header h1 {
       color: var(--mat-sys-on-surface);
       font: var(--mat-sys-display-small);
+      margin-top: 4px;
+    }
+
+    .page-header span {
+      color: var(--mat-sys-on-surface-variant);
+      display: block;
+      font: var(--mat-sys-body-medium);
+      margin-top: 6px;
     }
 
     .search-field {
@@ -153,20 +166,33 @@ import { UsersService } from './users.service'
     }
 
     .list-panel {
-      background: var(--mat-sys-surface-container-low);
-      border: 1px solid var(--mat-sys-outline-variant);
+      background: var(--mat-sys-surface);
+      border: 1px solid
+        color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
       border-radius: 8px;
+      box-shadow: var(--mat-sys-level1);
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      max-height: calc(100vh - 164px);
       overflow: hidden;
     }
 
     .table-wrap {
-      overflow-x: auto;
+      overflow: auto;
     }
 
     table {
-      min-width: 720px;
+      background: transparent;
+      min-width: 680px;
       overflow: clip;
       width: 100%;
+    }
+
+    tr.mat-mdc-header-row {
+      background: var(--mat-sys-surface-container-low);
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     th.mat-mdc-header-cell {
@@ -180,7 +206,7 @@ import { UsersService } from './users.service'
 
     tr.mat-mdc-row:focus-within,
     tr.mat-mdc-row:hover {
-      background: var(--mat-sys-secondary-container);
+      background: var(--mat-sys-surface-container-low);
     }
 
     td.mat-mdc-cell {
@@ -220,12 +246,6 @@ import { UsersService } from './users.service'
       text-align: center;
     }
 
-    .role-chip {
-      pointer-events: none;
-      text-transform: capitalize;
-      --mat-chip-hover-state-layer-opacity: 0;
-    }
-
     @media (max-width: 1060px) {
       .content-grid {
         grid-template-columns: 1fr;
@@ -240,6 +260,14 @@ import { UsersService } from './users.service'
       .page-header {
         align-items: stretch;
         grid-template-columns: 1fr;
+      }
+
+      .page-header h1 {
+        font: var(--mat-sys-headline-large);
+      }
+
+      .list-panel {
+        max-height: calc(100vh - 220px);
       }
     }
   `,
@@ -281,6 +309,11 @@ export class UsersPage {
 
   protected fullName(user: Pick<User, 'firstName' | 'lastName'>) {
     return `${user.firstName} ${user.lastName}`
+  }
+
+  protected userCountLabel() {
+    const count = this.dataSource.data.length
+    return `${count} ${count === 1 ? 'user' : 'users'}`
   }
 
   protected detailsActionLabel(user: User) {
