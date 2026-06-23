@@ -4,6 +4,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Post,
   UsePipes,
 } from '@nestjs/common'
@@ -23,7 +24,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  getUserById(@Param('id') id: number): User {
+  getUserById(@Param('id', ParseIntPipe) id: number): User {
     const user = this.usersService.getUserById(id)
     if (user) return user
 
