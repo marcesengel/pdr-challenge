@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "data:reset": "node -e \"require('node:fs').rmSync('data/users.json', { force: true })\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"

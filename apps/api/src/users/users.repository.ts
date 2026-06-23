@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { CreateUserDto, type User } from 'shared'
@@ -10,6 +10,7 @@ import { userStrictPhoneSchema } from './users.validation'
 export class UsersRepository {
   private users: Record<number, User> = {}
   private saveFilePath = join(process.cwd(), 'data/users.json')
+  private bundledUsersFilePath = join(__dirname, 'assets/users.json')
   private currentMaxId = 1
 
   async onModuleInit(): Promise<void> {
@@ -18,10 +19,7 @@ export class UsersRepository {
   }
 
   private async loadUsers() {
-    const serializedUsers = await readFile(
-      join(__dirname, 'assets/users.json'),
-      'utf8',
-    )
+    const serializedUsers = await this.readUsersFile()
     const rawUsers = JSON.parse(serializedUsers)
     if (!Array.isArray(rawUsers))
       throw new Error('Expected raw users to be an array.')
@@ -32,7 +30,16 @@ export class UsersRepository {
       .map((r) => r.data)
 
     this.users = Object.fromEntries(users.map((user) => [user.id, user]))
-    this.currentMaxId = Math.max(...users.map((user) => user.id))
+    this.currentMaxId = Math.max(0, ...users.map((user) => user.id))
+  }
+
+  private async readUsersFile(): Promise<string> {
+    try {
+      return await readFile(this.saveFilePath, 'utf8')
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== 'ENOENT') throw error
+      return readFile(this.bundledUsersFilePath, 'utf8')
+    }
   }
 
   findMany(): User[] {
@@ -73,10 +80,13 @@ export class UsersRepository {
         // we'll have to go again
         this.writeIsStale = false
         const json = JSON.stringify(Object.values(this.users))
+        const tempFilePath = `${this.saveFilePath}.${process.pid}.${Date.now()}.tmp`
 
         try {
-          await writeFile(this.saveFilePath, json, 'utf8')
+          await writeFile(tempFilePath, json, 'utf8')
+          await rename(tempFilePath, this.saveFilePath)
         } catch (error) {
+          await rm(tempFilePath, { force: true }).catch(() => undefined)
           console.error('Failed to write users to disk. Retrying.', error)
           this.writeIsStale = true
           await setTimeout(1000)
@@ -89,3 +99,7 @@ export class UsersRepository {
 }
 
 export type CreateUserRecord = CreateUserDto
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error
+}

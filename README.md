@@ -1,6 +1,7 @@
 ## Initial Data
 
-- Data is always initialised from the given initial data, `data/users.json` is only written to.
+- Data is loaded from `data/users.json` when it exists, otherwise it is initialised from the bundled seed data.
+- To reset local persisted data and return to the bundled seed data on next API startup, run `corepack pnpm run data:reset`.
 - Invalid entries are discarded for simplicity.
 - Phone numbers are parsed as US numbers and normalized to E.164.
 - Possible but not necessarily valid/allocated phone numbers are accepted to avoid discarding too much of the provided data.
@@ -9,7 +10,7 @@
 ## Data Persistence
 
 - The users repository keeps an in-memory `id -> user` object as the source of truth, allowing average `O(1)` lookups by id.
-- Changes are persisted asynchronously with concurrency `1`.
+- Changes are persisted asynchronously with concurrency `1` using a temporary file and atomic rename.
 
 ### Upsides
 
