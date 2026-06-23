@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
-import { type User, userSchema } from 'shared'
+import { type User } from 'shared'
+
+import { userStrictPhoneSchema } from './users.validation'
 
 @Injectable()
 export class UsersRepository {
@@ -25,7 +27,7 @@ export class UsersRepository {
       throw new Error('Expected raw users to be an array.')
 
     const users = rawUsers
-      .map((ru) => userSchema.safeParse(ru))
+      .map((ru) => userStrictPhoneSchema.safeParse(ru))
       .filter((r) => r.success)
       .map((r) => r.data)
 

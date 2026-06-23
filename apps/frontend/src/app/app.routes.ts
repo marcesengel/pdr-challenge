@@ -1,3 +1,15 @@
 import { Route } from '@angular/router'
 
-export const appRoutes: Route[] = []
+import { UsersPage } from './users-page'
+
+export const appRoutes: Route[] = [
+  {
+    path: '',
+    pathMatch: 'full',
+    component: UsersPage,
+  },
+  {
+    path: '**',
+    redirectTo: '',
+  },
+]

@@ -1,4 +1,5 @@
 import { BadRequestException, PipeTransform } from '@nestjs/common'
+import type { ValidationErrorResponse } from 'shared'
 import { ZodType } from 'zod'
 
 export class ZodValidationPipe<TType extends ZodType> implements PipeTransform {
@@ -10,7 +11,19 @@ export class ZodValidationPipe<TType extends ZodType> implements PipeTransform {
     if (result.success) {
       return result.data
     } else {
-      throw new BadRequestException('Invalid request body')
+      const response: ValidationErrorResponse = {
+        message: 'Invalid request body',
+        errors: result.error.issues.map((issue) => ({
+          path: issue.path.map((pathSegment) =>
+            typeof pathSegment === 'symbol'
+              ? pathSegment.toString()
+              : pathSegment,
+          ),
+          message: issue.message,
+        })),
+      }
+
+      throw new BadRequestException(response)
     }
   }
 }

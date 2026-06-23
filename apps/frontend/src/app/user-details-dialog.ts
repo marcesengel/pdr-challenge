@@ -46,12 +46,18 @@ import { UsersService } from './users.service'
           <mat-divider></mat-divider>
           <div>
             <span>Phone</span>
-            <strong>{{ user.phoneNumber }}</strong>
+            <strong>{{ user.phoneNumber || missingValue }}</strong>
           </div>
           <mat-divider></mat-divider>
           <div>
             <span>Birth date</span>
-            <strong>{{ user.birthDate | date: 'mediumDate' }}</strong>
+            <strong>
+              {{
+                user.birthDate
+                  ? (user.birthDate | date: 'mediumDate')
+                  : missingValue
+              }}
+            </strong>
           </div>
           <mat-divider></mat-divider>
           <div>
@@ -121,6 +127,7 @@ export class UserDetailsDialog {
   private readonly usersService = inject(UsersService)
 
   protected readonly errorMessage = 'Unable to load user details.'
+  protected readonly missingValue = 'Not provided'
   protected readonly userState = toSignal(
     this.usersService.getUser(this.data.userId).pipe(
       catchError((err) => {

@@ -1,4 +1,12 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core'
+import { HttpErrorResponse } from '@angular/common/http'
+import {
+  Component,
+  DestroyRef,
+  EventEmitter,
+  Output,
+  inject,
+} from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import {
   FormBuilder,
   FormGroupDirective,
@@ -12,9 +20,20 @@ import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
 import { MatSelectModule } from '@angular/material/select'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
-import type { CreateUserDto, User } from 'shared'
+import { finalize } from 'rxjs'
+import {
+  createUserDtoSchema,
+  requiredUserFieldsByRole,
+  userRoles,
+  validationErrorResponseSchema,
+  type BaseUserField,
+  type UserRole,
+} from 'shared'
 
 import { UsersService } from './users.service'
+
+type UserCreationField = Exclude<BaseUserField, 'id'>
+type UserCreationFormField = UserCreationField | 'role'
 
 @Component({
   imports: [
@@ -35,6 +54,16 @@ import { UsersService } from './users.service'
       [formGroup]="userForm"
       (ngSubmit)="createUser(formDirective)"
     >
+      <mat-form-field appearance="outline">
+        <mat-label>Role</mat-label>
+        <mat-select formControlName="role">
+          @for (role of roles; track role) {
+            <mat-option [value]="role">{{ role }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>{{ getFieldError('role') }}</mat-error>
+      </mat-form-field>
+
       <div class="name-grid">
         <mat-form-field appearance="outline">
           <mat-label>First name</mat-label>
@@ -65,7 +94,11 @@ import { UsersService } from './users.service'
 
       <mat-form-field appearance="outline">
         <mat-label>Phone</mat-label>
-        <input matInput formControlName="phoneNumber" autocomplete="tel" />
+        <input
+          matInput
+          formControlName="phoneNumber"
+          autocomplete="tel"
+        />
         <mat-error>{{ getFieldError('phoneNumber') }}</mat-error>
       </mat-form-field>
 
@@ -82,16 +115,6 @@ import { UsersService } from './users.service'
         ></mat-datepicker-toggle>
         <mat-datepicker #birthDatePicker></mat-datepicker>
         <mat-error>{{ getFieldError('birthDate') }}</mat-error>
-      </mat-form-field>
-
-      <mat-form-field appearance="outline">
-        <mat-label>Role</mat-label>
-        <mat-select formControlName="role">
-          @for (role of roles; track role) {
-            <mat-option [value]="role">{{ role }}</mat-option>
-          }
-        </mat-select>
-        <mat-error>{{ getFieldError('role') }}</mat-error>
       </mat-form-field>
 
       <button mat-flat-button type="submit" [disabled]="isCreating">
@@ -147,32 +170,40 @@ import { UsersService } from './users.service'
 export class UserCreationForm {
   @Output() readonly userCreated = new EventEmitter<void>()
 
+  private readonly destroyRef = inject(DestroyRef)
   private readonly formBuilder = inject(FormBuilder)
   private readonly snackBar = inject(MatSnackBar)
   private readonly usersService = inject(UsersService)
+  private validationRequest = 0
 
-  protected readonly roles: User['role'][] = ['admin', 'editor', 'viewer']
+  protected readonly roles = userRoles
   protected readonly userForm = this.formBuilder.nonNullable.group({
     firstName: ['', Validators.required],
     lastName: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
-    phoneNumber: ['', Validators.required],
-    birthDate: this.formBuilder.control<Date | null>(null, Validators.required),
-    role: this.formBuilder.nonNullable.control<User['role']>('viewer', {
+    phoneNumber: [''],
+    birthDate: this.formBuilder.control<Date | null>(null),
+    role: this.formBuilder.nonNullable.control<UserRole>('viewer', {
       validators: [Validators.required],
     }),
   })
 
   protected isCreating = false
 
-  protected async createUser(formDirective: FormGroupDirective) {
-    this.userForm.markAllAsTouched()
-    this.clearZodErrors()
+  constructor() {
+    void this.validateWithSharedSchema()
+    this.userForm.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => void this.validateWithSharedSchema())
+  }
 
-    const { createUserDtoSchema } = await import('shared')
-    const result = createUserDtoSchema.safeParse(this.getCreateUserDto())
+  protected createUser(formDirective: FormGroupDirective) {
+    this.userForm.markAllAsTouched()
+    const result = this.validateWithSharedSchema({
+      markZodErrorsAsTouched: true,
+    })
+
     if (!result.success) {
-      this.applyZodErrors(result.error.issues)
       this.snackBar.open('Please fix the highlighted fields.', 'Dismiss', {
         duration: 3500,
       })
@@ -180,38 +211,90 @@ export class UserCreationForm {
     }
 
     this.isCreating = true
-    this.usersService.createUser(result.data).subscribe({
-      next: () => {
-        formDirective.resetForm({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phoneNumber: '',
-          birthDate: null,
-          role: 'viewer',
-        })
-        this.snackBar.open('User created.', 'Dismiss', { duration: 3000 })
-        this.userCreated.emit()
-      },
-      error: () => {
-        this.snackBar.open('Unable to create user.', 'Dismiss', {
-          duration: 4500,
-        })
-        this.isCreating = false
-      },
-      complete: () => {
-        this.isCreating = false
-      },
-    })
+    this.usersService
+      .createUser(result.data)
+      .pipe(
+        finalize(() => {
+          this.isCreating = false
+        }),
+      )
+      .subscribe({
+        next: () => {
+          formDirective.resetForm({
+            firstName: '',
+            lastName: '',
+            email: '',
+            phoneNumber: '',
+            birthDate: null,
+            role: 'viewer',
+          })
+          this.snackBar.open('User created.', 'Dismiss', { duration: 3000 })
+          this.userCreated.emit()
+        },
+        error: (error: unknown) => {
+          if (this.applyServerValidationErrors(error)) {
+            this.snackBar.open('Please fix the highlighted fields.', 'Dismiss', {
+              duration: 3500,
+            })
+          } else {
+            this.snackBar.open('Unable to create user.', 'Dismiss', {
+              duration: 4500,
+            })
+          }
+        },
+      })
   }
 
-  protected getFieldError(field: keyof CreateUserDto) {
+  protected isFieldRequired(field: UserCreationField) {
+    const requiredFields =
+      requiredUserFieldsByRole[this.userForm.controls.role.value] ?? []
+
+    return requiredFields.some((requiredField) => requiredField === field)
+  }
+
+  protected getFieldError(field: UserCreationFormField) {
     const control = this.userForm.controls[field]
     if (!control.touched && !control.dirty) return ''
     if (control.hasError('required')) return 'Required'
     if (control.hasError('email')) return 'Enter a valid email'
     if (control.hasError('zod')) return control.getError('zod')
     return ''
+  }
+
+  private validateWithSharedSchema(options?: {
+    markZodErrorsAsTouched?: boolean
+  }) {
+    this.syncRequiredValidators()
+    this.clearZodErrors()
+
+    const validationRequest = ++this.validationRequest
+    const result = createUserDtoSchema.safeParse(this.getCreateUserDto())
+
+    if (validationRequest !== this.validationRequest) {
+      return result
+    }
+
+    if (!result.success) {
+      this.applyZodErrors(
+        result.error.issues,
+        options?.markZodErrorsAsTouched ?? false,
+      )
+    }
+
+    return result
+  }
+
+  private syncRequiredValidators() {
+    this.syncRequiredValidator('phoneNumber')
+    this.syncRequiredValidator('birthDate')
+  }
+
+  private syncRequiredValidator(field: 'phoneNumber' | 'birthDate') {
+    const control = this.userForm.controls[field]
+    control.setValidators(
+      this.isFieldRequired(field) ? [Validators.required] : [],
+    )
+    control.updateValueAndValidity({ emitEvent: false })
   }
 
   private clearZodErrors() {
@@ -227,26 +310,56 @@ export class UserCreationForm {
     })
   }
 
-  private applyZodErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  private applyZodErrors(
+    issues: { path: PropertyKey[]; message: string }[],
+    markAsTouched = false,
+  ) {
     issues.forEach((issue) => {
       const field = issue.path[0]
       if (typeof field !== 'string' || !(field in this.userForm.controls)) {
         return
       }
 
-      const control = this.userForm.controls[field as keyof CreateUserDto]
+      const control = this.userForm.controls[field as UserCreationFormField]
       control.setErrors({ ...control.errors, zod: issue.message })
-      control.markAsTouched()
+      if (markAsTouched) control.markAsTouched()
     })
   }
 
-  private getCreateUserDto(): CreateUserDto {
-    const formValue = this.userForm.getRawValue()
-
-    return {
-      ...formValue,
-      birthDate: formValue.birthDate ? this.formatDate(formValue.birthDate) : '',
+  private applyServerValidationErrors(error: unknown) {
+    if (!(error instanceof HttpErrorResponse)) {
+      return false
     }
+
+    const result = validationErrorResponseSchema.safeParse(error.error)
+
+    if (!result.success) {
+      return false
+    }
+
+    this.applyZodErrors(result.data.errors, true)
+    return true
+  }
+
+  private getCreateUserDto(): unknown {
+    const formValue = this.userForm.getRawValue()
+    const user: Record<string, unknown> = {
+      firstName: formValue.firstName,
+      lastName: formValue.lastName,
+      email: formValue.email,
+      role: formValue.role,
+    }
+
+    const phoneNumber = formValue.phoneNumber.trim()
+    if (phoneNumber) {
+      user['phoneNumber'] = phoneNumber
+    }
+
+    if (formValue.birthDate) {
+      user['birthDate'] = this.formatDate(formValue.birthDate)
+    }
+
+    return user
   }
 
   private formatDate(date: Date) {

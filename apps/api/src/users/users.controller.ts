@@ -7,10 +7,11 @@ import {
   Post,
   UsePipes,
 } from '@nestjs/common'
-import { CreateUserDto, User, createUserDtoSchema } from 'shared'
+import { CreateUserDto, User } from 'shared'
 
 import { ZodValidationPipe } from '../zod-validation-pipe'
 import { UsersService } from './users.service'
+import { createUserDtoStrictPhoneSchema } from './users.validation'
 
 @Controller('users')
 export class UsersController {
@@ -30,7 +31,7 @@ export class UsersController {
   }
 
   @Post()
-  @UsePipes(new ZodValidationPipe(createUserDtoSchema))
+  @UsePipes(new ZodValidationPipe(createUserDtoStrictPhoneSchema))
   createUser(@Body() user: CreateUserDto) {
     this.usersService.createUser(user)
   }
