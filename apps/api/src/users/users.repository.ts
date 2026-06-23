@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
-import { type User } from 'shared'
+import { CreateUserDto, type User } from 'shared'
 
 import { userStrictPhoneSchema } from './users.validation'
 
@@ -88,4 +88,4 @@ export class UsersRepository {
   }
 }
 
-export type CreateUserRecord = Omit<User, 'id'>
+export type CreateUserRecord = CreateUserDto

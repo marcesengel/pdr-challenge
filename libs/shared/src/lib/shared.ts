@@ -1,24 +1,5 @@
 import * as z from 'zod'
 
-export const userRoles = ['admin', 'editor', 'viewer'] as const
-export type UserRole = (typeof userRoles)[number]
-
-export const userFieldNames = [
-  'id',
-  'firstName',
-  'lastName',
-  'email',
-  'phoneNumber',
-  'birthDate',
-] as const
-export type BaseUserField = (typeof userFieldNames)[number]
-
-export const requiredUserFieldsByRole = {
-  admin: ['phoneNumber', 'birthDate'],
-  editor: ['phoneNumber'],
-  viewer: [],
-} as const satisfies Record<UserRole, readonly BaseUserField[]>
-
 const phoneNumberSchema = z
   .string()
   .trim()
@@ -34,58 +15,70 @@ const phoneNumberSchema = z
 const emptyStringToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
-const optionalStringInput = <TSchema extends z.ZodType>(schema: TSchema) =>
-  z.preprocess(emptyStringToUndefined, schema.optional())
-
 const nonEmptyStringSchema = z.string().trim().min(1, 'Required')
 
-const userFieldSchemas = {
+export const userRoles = ['admin', 'editor', 'viewer'] as const
+export type UserRole = (typeof userRoles)[number]
+const baseUserSchema = z.strictObject({
   id: z.number(),
+  role: z.enum(userRoles),
   firstName: nonEmptyStringSchema,
   lastName: nonEmptyStringSchema,
-  email: z.string().trim().pipe(z.email()),
-  phoneNumber: optionalStringInput(phoneNumberSchema),
-  birthDate: optionalStringInput(z.iso.date()),
-} satisfies Record<BaseUserField, z.ZodType>
+  email: z.email(),
+  phoneNumber: z.preprocess(emptyStringToUndefined, phoneNumberSchema),
+  birthDate: z.preprocess(emptyStringToUndefined, z.iso.date()),
+})
 
-const conditionalUserFields = {
-  phoneNumber: true,
-  birthDate: true,
-} satisfies Partial<Record<BaseUserField, true>>
+export const optionalUserFieldsByRole = {
+  admin: [],
+  editor: ['birthDate'],
+  viewer: ['phoneNumber', 'birthDate'],
+} as const satisfies Record<
+  UserRole,
+  readonly (keyof z.infer<typeof baseUserSchema>)[]
+>
+export type ConditionalUserField =
+  (typeof optionalUserFieldsByRole)[UserRole][number]
 
-const baseUserSchema = z.strictObject(userFieldSchemas).partial(
-  conditionalUserFields,
-)
-
-function requiredFieldMask(fields: readonly BaseUserField[]) {
-  return Object.fromEntries(fields.map((field) => [field, true])) as Partial<
-    Record<BaseUserField, true>
-  >
+function fieldNamesToMask<T extends string>(fields: readonly T[]) {
+  return Object.fromEntries(fields.map((field) => [field, true])) as {
+    [K in T]: true
+  }
 }
 
-const userSchemaForRole = <TRole extends UserRole>(role: TRole) =>
-  baseUserSchema
-    .extend({
-      role: z.literal(role),
-    })
-    .required(requiredFieldMask(requiredUserFieldsByRole[role]))
+const userSchemaForRole = <TRole extends UserRole>(role: TRole) => {
+  return baseUserSchema.extend({
+    role: z.literal(role),
+  })
+}
 
 export const userSchema = z.discriminatedUnion('role', [
-  userSchemaForRole('admin'),
-  userSchemaForRole('editor'),
-  userSchemaForRole('viewer'),
+  userSchemaForRole('admin').partial(
+    fieldNamesToMask(optionalUserFieldsByRole['admin']),
+  ),
+  userSchemaForRole('editor').partial(
+    fieldNamesToMask(optionalUserFieldsByRole['editor']),
+  ),
+  userSchemaForRole('viewer').partial(
+    fieldNamesToMask(optionalUserFieldsByRole['viewer']),
+  ),
 ])
-
-const createUserDtoSchemaForRole = <TRole extends UserRole>(role: TRole) =>
-  userSchemaForRole(role).omit({
-    id: true,
-  })
 
 export const createUserDtoSchema = z.discriminatedUnion('role', [
-  createUserDtoSchemaForRole('admin'),
-  createUserDtoSchemaForRole('editor'),
-  createUserDtoSchemaForRole('viewer'),
+  userSchemaForRole('admin')
+    .omit({ id: true })
+    .partial(fieldNamesToMask(optionalUserFieldsByRole['admin'])),
+  userSchemaForRole('editor')
+    .omit({ id: true })
+    .partial(fieldNamesToMask(optionalUserFieldsByRole['editor'])),
+  userSchemaForRole('viewer')
+    .omit({ id: true })
+    .partial(fieldNamesToMask(optionalUserFieldsByRole['viewer'])),
 ])
+
+export type User = z.infer<typeof userSchema>
+export type CreateUserDto = z.infer<typeof createUserDtoSchema>
+export type CreateUserDtoField = keyof CreateUserDto
 
 export const validationErrorResponseSchema = z.strictObject({
   message: z.string(),
@@ -97,8 +90,6 @@ export const validationErrorResponseSchema = z.strictObject({
   ),
 })
 
-export type User = z.infer<typeof userSchema>
-export type CreateUserDto = z.infer<typeof createUserDtoSchema>
 export type ValidationErrorResponse = z.infer<
   typeof validationErrorResponseSchema
 >

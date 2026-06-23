@@ -22,18 +22,19 @@ import { MatSelectModule } from '@angular/material/select'
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'
 import { finalize } from 'rxjs'
 import {
+  type ConditionalUserField,
+  type CreateUserDtoField,
+  type UserRole,
   createUserDtoSchema,
-  requiredUserFieldsByRole,
+  optionalUserFieldsByRole,
   userRoles,
   validationErrorResponseSchema,
-  type BaseUserField,
-  type UserRole,
 } from 'shared'
 
 import { UsersService } from './users.service'
 
-type UserCreationField = Exclude<BaseUserField, 'id'>
-type UserCreationFormField = UserCreationField | 'role'
+type UserCreationField = Exclude<CreateUserDtoField, 'role'>
+type UserCreationFormField = CreateUserDtoField
 
 @Component({
   imports: [
@@ -98,6 +99,7 @@ type UserCreationFormField = UserCreationField | 'role'
           matInput
           formControlName="phoneNumber"
           autocomplete="tel"
+          [required]="isFieldRequired('phoneNumber')"
         />
         <mat-error>{{ getFieldError('phoneNumber') }}</mat-error>
       </mat-form-field>
@@ -108,6 +110,7 @@ type UserCreationFormField = UserCreationField | 'role'
           matInput
           [matDatepicker]="birthDatePicker"
           formControlName="birthDate"
+          [required]="isFieldRequired('birthDate')"
         />
         <mat-datepicker-toggle
           matIconSuffix
@@ -233,9 +236,13 @@ export class UserCreationForm {
         },
         error: (error: unknown) => {
           if (this.applyServerValidationErrors(error)) {
-            this.snackBar.open('Please fix the highlighted fields.', 'Dismiss', {
-              duration: 3500,
-            })
+            this.snackBar.open(
+              'Please fix the highlighted fields.',
+              'Dismiss',
+              {
+                duration: 3500,
+              },
+            )
           } else {
             this.snackBar.open('Unable to create user.', 'Dismiss', {
               duration: 4500,
@@ -246,10 +253,10 @@ export class UserCreationForm {
   }
 
   protected isFieldRequired(field: UserCreationField) {
-    const requiredFields =
-      requiredUserFieldsByRole[this.userForm.controls.role.value] ?? []
+    const optionalFields =
+      optionalUserFieldsByRole[this.userForm.controls.role.value]
 
-    return requiredFields.some((requiredField) => requiredField === field)
+    return !(optionalFields as readonly string[]).includes(field)
   }
 
   protected getFieldError(field: UserCreationFormField) {
@@ -289,7 +296,7 @@ export class UserCreationForm {
     this.syncRequiredValidator('birthDate')
   }
 
-  private syncRequiredValidator(field: 'phoneNumber' | 'birthDate') {
+  private syncRequiredValidator(field: ConditionalUserField) {
     const control = this.userForm.controls[field]
     control.setValidators(
       this.isFieldRequired(field) ? [Validators.required] : [],
