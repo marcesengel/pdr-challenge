@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core'
 import { Observable, map } from 'rxjs'
-import { userSchema, type CreateUserDto } from 'shared'
+import { type CreateUserDto, userSchema } from 'shared'
 import type * as z from 'zod'
 
 @Injectable({ providedIn: 'root' })

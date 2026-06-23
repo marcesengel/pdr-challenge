@@ -18,9 +18,7 @@ function isStrictPhoneNumber(phoneNumber: string) {
   }
 }
 
-function withStrictPhoneValidation<TSchema extends z.ZodType>(
-  schema: TSchema,
-) {
+function withStrictPhoneValidation<TSchema extends z.ZodType>(schema: TSchema) {
   return schema.superRefine((value, ctx) => {
     const phoneNumber =
       value &&

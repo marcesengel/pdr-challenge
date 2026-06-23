@@ -40,3 +40,9 @@ Leave the neutral and neutral variant prompts blank unless custom neutral palett
 
 > [!NOTE]
 > The colors passed to the schematic are Material 3 seed colors. Angular Material generates tonal palettes from them, so the emitted theme role values such as `--mat-sys-primary` may not exactly match the original hex inputs.
+
+## Git Hooks
+
+Run `corepack pnpm install` after cloning so the `prepare` script configures Husky.
+
+The pre-commit hook runs a quiet Prettier check, blocking commits until files match the repo Prettier configuration.

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+corepack pnpm --silent format:check --log-level=warn
