@@ -20,3 +20,23 @@
 
 - The in-memory source of truth makes multi-process or horizontally scaled deployments unsafe without additional coordination.
 - Recently accepted writes can be lost if the process exits before asynchronous persistence completes.
+
+## Frontend Theme
+
+The Angular Material 3 theme palettes are generated with the Angular Material schematic:
+
+```sh
+nx generate @angular/material:theme-color \
+  --primary-color '#1da4e8' \
+  --secondary-color '#20d2a8' \
+  --tertiary-color '#e4dc46' \
+  --error-color '#d32f55' \
+  --directory apps/frontend/src/ \
+  --is-scss true \
+  --include-high-contrast false
+```
+
+Leave the neutral and neutral variant prompts blank unless custom neutral palettes are required. The trailing slash in `apps/frontend/src/` is intentional; without it, the schematic writes `apps/frontend/src_theme-colors.scss` instead of `apps/frontend/src/_theme-colors.scss`.
+
+> [!NOTE]
+> The colors passed to the schematic are Material 3 seed colors. Angular Material generates tonal palettes from them, so the emitted theme role values such as `--mat-sys-primary` may not exactly match the original hex inputs.
