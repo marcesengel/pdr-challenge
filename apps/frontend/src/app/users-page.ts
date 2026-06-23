@@ -1,4 +1,5 @@
 import { Component, ViewChild, inject } from '@angular/core'
+import { MatChipsModule } from '@angular/material/chips'
 import { MatDialog } from '@angular/material/dialog'
 import { MatFormFieldModule } from '@angular/material/form-field'
 import { MatInputModule } from '@angular/material/input'
@@ -14,6 +15,7 @@ import { UsersService } from './users.service'
 
 @Component({
   imports: [
+    MatChipsModule,
     MatFormFieldModule,
     MatInputModule,
     MatPaginatorModule,
@@ -63,7 +65,7 @@ import { UsersService } from './users.service'
               <ng-container matColumnDef="role">
                 <th mat-header-cell *matHeaderCellDef>Role</th>
                 <td mat-cell *matCellDef="let user">
-                  <span class="role-pill">{{ user.role }}</span>
+                  <mat-chip class="role-chip">{{ user.role }}</mat-chip>
                   <button
                     type="button"
                     class="row-action"
@@ -218,19 +220,10 @@ import { UsersService } from './users.service'
       text-align: center;
     }
 
-    .role-pill {
-      align-items: center;
-      background: var(--mat-sys-tertiary-container);
-      border-radius: 999px;
-      color: var(--mat-sys-on-tertiary-container);
-      display: inline-flex;
-      font: var(--mat-sys-label-medium);
-      font-weight: 700;
-      justify-content: center;
-      min-height: 28px;
-      min-width: 68px;
-      padding: 4px 10px;
+    .role-chip {
+      pointer-events: none;
       text-transform: capitalize;
+      --mat-chip-hover-state-layer-opacity: 0;
     }
 
     @media (max-width: 1060px) {
